@@ -14,7 +14,7 @@ def status_color(status):
     }.get(status, "#9f9f9f")
 
 def estimate_text_width(text):
-    avg_char_width = 6  # tweak based on font and size
+    avg_char_width = 7  # tweak based on font and size
     padding = 10
     return len(text) * avg_char_width + padding
 
