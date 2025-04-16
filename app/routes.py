@@ -32,6 +32,7 @@ def badge():
         return "Job not found", 404
 
     status = job_info["status"]
+    job_url = job_info["web_url"]
     color = status_color(status)
 
     label_width = estimate_text_width(job_name)
@@ -45,7 +46,8 @@ def badge():
         color=color,
         label_width=label_width,
         status_width=status_width,
-        total_width=total_width
+        total_width=total_width,
+        job_url=job_url  # 👈 this is new
     )
 
     return Response(svg, content_type="image/svg+xml")
