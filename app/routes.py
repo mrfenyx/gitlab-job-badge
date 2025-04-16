@@ -47,7 +47,7 @@ def badge():
         label_width=label_width,
         status_width=status_width,
         total_width=total_width,
-        job_url=job_url  # 👈 this is new
+        job_url=job_url
     )
 
     return Response(svg, content_type="image/svg+xml")

@@ -6,7 +6,7 @@ This project is a lightweight Flask-based API that serves dynamic SVG badges sho
 
 - Returns GitLab-style SVG badges with rounded corners.
 - Automatically finds the latest **non-skipped** job run.
-- Badge links to the GitLab job execution.
+- Badge **includes a clickable link** to the GitLab job.
 - Supports Docker and Docker Hub publishing.
 - GitHub Actions workflow with manual version tagging.
 
@@ -22,16 +22,26 @@ GET /badge?projectid=<project_id>&branch=<branch_name>&job=<job_name>
 
 Returns an SVG badge showing the status of the latest non-skipped job.
 
+The badge itself is clickable and links to the corresponding GitLab job.
+
 ### Example
 
 ```
 GET /badge?projectid=12345&branch=main&job=tests
 ```
 
-### Embedding in Markdown
+### Embedding in Markdown or Confluence
 
 ```
-[![tests](https://yourdomain.com/badge?projectid=12345&branch=main&job=tests)](https://yourdomain.com/badge/link?projectid=12345&branch=main&job=tests)
+![tests](https://yourdomain.com/badge?projectid=12345&branch=main&job=tests)
+```
+
+Or use an `<img>` inside a link:
+
+```html
+<a href="https://yourdomain.com/badge/link?projectid=12345&branch=main&job=tests">
+  <img src="https://yourdomain.com/badge?projectid=12345&branch=main&job=tests" alt="Build status">
+</a>
 ```
 
 ---
@@ -99,3 +109,4 @@ gitlab-badge-api/
 ## 📄 License
 
 MIT License
+
