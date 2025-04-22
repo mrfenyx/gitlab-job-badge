@@ -69,6 +69,7 @@ def test_case_badge():
     testsuite = request.args.get("testsuite")
     classname = request.args.get("classname")
     branch = request.args.get("branch")
+    simple= request.args.get("simple", "false").lower() == "true"
 
     if not project_id or not testsuite or not classname:
         return "Missing parameters", 400
@@ -80,19 +81,25 @@ def test_case_badge():
     status = test_info["status"]
     color = status_color(status)
 
-    label = classname[:37] + "..."
-    label_width = estimate_text_width(label)
-    status_width = estimate_text_width(status)
-    total_width = label_width + status_width
+    if simple:
+        label = ""
+        label_width = 0
+        status_width = estimate_text_width(status)
+        total_width = status_width
+    else:
+        label = classname[:37] + "..."
+        label_width = estimate_text_width(label)- 40
+        status_width = estimate_text_width(status)
+        total_width = label_width + status_width
 
     svg = render_template(
         "badge.svg.j2",
         label=label,
         status=status,
         color=color,
-        label_width=label_width-50,
+        label_width=label_width,
         status_width=status_width,
-        total_width=total_width-50,
+        total_width=total_width,
         job_url=test_info.get("web_url")
     )
 
