@@ -1,5 +1,5 @@
 from flask import Blueprint, request, redirect, render_template, Response
-from .gitlab_client import get_job_status
+from .gitlab_client import get_job_status, get_test_case_status
 
 bp = Blueprint("routes", __name__)
 
@@ -62,3 +62,38 @@ def badge_link():
     if job_info:
         return redirect(job_info["web_url"])
     return "Job not found", 404
+
+@bp.route("/test")
+def test_case_badge():
+    project_id = request.args.get("projectid")
+    testsuite = request.args.get("testsuite")
+    classname = request.args.get("classname")
+    branch = request.args.get("branch")
+
+    if not project_id or not testsuite or not classname:
+        return "Missing parameters", 400
+
+    test_info = get_test_case_status(project_id, testsuite, classname, branch)
+    if not test_info:
+        return "Test not found", 404
+
+    status = test_info["status"]
+    color = status_color(status)
+
+    label = classname[:37] + "..."
+    label_width = estimate_text_width(label)
+    status_width = estimate_text_width(status)
+    total_width = label_width + status_width
+
+    svg = render_template(
+        "badge.svg.j2",
+        label=label,
+        status=status,
+        color=color,
+        label_width=label_width-50,
+        status_width=status_width,
+        total_width=total_width-50,
+        job_url=test_info.get("web_url")
+    )
+
+    return Response(svg, content_type="image/svg+xml")
