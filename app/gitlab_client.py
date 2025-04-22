@@ -82,8 +82,8 @@ def get_test_case_status(project_id, testsuite_name, testcase_name, branch=None)
             if suite["name"] == testsuite_name:
                 print(f"Found test suite: {suite['name']}")
                 for test_case in suite.get("test_cases", []):
-                    print(f"Found test case: {test_case['name']}")
-                    if test_case["name"] == testcase_name:
+                    print(f"Found test case: _{test_case['name']}_")
+                    if test_case["name"].strip() == testcase_name.strip():
                         project_url = current_app.config.get("GITLAB_WEB_URL", "https://git.flix.tech")
                         project_api_url = f"{current_app.config['GITLAB_API_URL']}/projects/{project_id}"
                         project_response = requests.get(project_api_url, headers=headers)
