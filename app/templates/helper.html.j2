@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Badge Helper</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <h1>GitLab Test Badge URL Helper</h1>
+  <form method="get" action="/helper">
+    <input type="hidden" name="projectid" value="{{ projectid }}">
+    <input type="hidden" name="testsuite" value="{{ testsuite }}">
+    <label>Branch:
+      <input type="text" name="branch" value="{{ branch }}">
+    </label>
+    <label>
+      <input type="checkbox" name="simple" {% if simple %}checked{% endif %}> Simple
+    </label>
+    <button type="submit">Update</button>
+  </form>
+
+  <table>
+    <thead>
+        <tr>
+        <th>Test Case</th>
+        <th>Badge URL</th>
+        <th>Preview</th>
+        <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for name, url in badge_urls %}
+        <tr>
+        <td>{{ name }}</td>
+        <td><code id="url-{{ loop.index }}">{{ url }}</code></td>
+        <td><img src="{{ url }}" alt="badge"></td>
+        <td>
+            <button onclick="copyToClipboard('url-{{ loop.index }}')">Copy</button>
+        </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</body>
+<script>
+  function copyToClipboard(elementId) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied!");
+    }).catch(err => {
+      alert("Failed to copy: " + err);
+    });
+  }
+</script>
+</html>

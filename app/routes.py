@@ -1,5 +1,5 @@
 from flask import Blueprint, request, redirect, render_template, Response
-from .gitlab_client import get_job_status, get_test_case_status
+from .gitlab_client import get_job_status, get_test_case_status, get_test_cases_for_suite
 
 bp = Blueprint("routes", __name__)
 
@@ -104,3 +104,29 @@ def test_case_badge():
     )
 
     return Response(svg, content_type="image/svg+xml")
+
+@bp.route("/helper")
+def badge_helper():
+    project_id = request.args.get("projectid")
+    testsuite = request.args.get("testsuite")
+    branch = request.args.get("branch", "").strip()
+    simple = request.args.get("simple") == "on"
+
+    if not project_id or not testsuite:
+        return "Missing 'projectid' or 'testsuite' in query parameters", 400
+
+    test_cases = get_test_cases_for_suite(project_id, testsuite, branch or None)
+
+    base_url = request.host_url.rstrip("/")
+    badge_urls = []
+
+    for case in test_cases:
+        name = case["name"]
+        url = f"/test?projectid={project_id}&testsuite={testsuite}&classname={name}"
+        if branch:
+            url += f"&branch={branch}"
+        if simple:
+            url += "&simple=true"
+        badge_urls.append((name, base_url + url))
+
+    return render_template("helper.html.j2", badge_urls=badge_urls, projectid=project_id, testsuite=testsuite, branch=branch, simple=simple)
