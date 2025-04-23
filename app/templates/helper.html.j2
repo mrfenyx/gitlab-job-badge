@@ -23,19 +23,21 @@
     <thead>
         <tr>
         <th>Test Case</th>
+        <th></th>
         <th>Badge URL</th>
         <th>Preview</th>
-        <th></th>
         </tr>
     </thead>
     <tbody>
         {% for name, url in badge_urls %}
         <tr>
         <td>{{ name }}</td>
-        <td><code id="url-{{ loop.index }}">{{ url }}</code></td>
-        <td><img src="{{ url }}" alt="badge"></td>
         <td>
-            <button onclick="copyToClipboard('url-{{ loop.index }}')">Copy</button>
+            <button onclick="copyToClipboard('url-{{ loop.index }}')">Copy URL</button>
+        </td>
+        <td><code id="url-{{ loop.index }}">{{ url }}</code></td>
+        <td>
+            <iframe src="{{ url }}" width="320" height="20" frameborder="0" scrolling="no" style="background: transparent;"></iframe>
         </td>
         </tr>
         {% endfor %}
