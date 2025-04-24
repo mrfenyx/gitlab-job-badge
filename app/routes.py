@@ -1,7 +1,17 @@
-from flask import Blueprint, request, redirect, render_template, Response, session, url_for, current_app
+from flask import Blueprint, request, redirect, render_template, Response, session, current_app, abort, url_for
 from .gitlab_client import get_job_status, get_test_case_status, get_test_cases_for_suite
+from urllib.parse import urlencode
+import hmac
+import hashlib
 
 bp = Blueprint("routes", __name__)
+
+# --- Security Helpers ---
+
+def estimate_text_width(text):
+    avg_char_width = 7
+    padding = 10
+    return len(text) * avg_char_width + padding
 
 def status_color(status):
     return {
@@ -13,13 +23,27 @@ def status_color(status):
         "manual": "#007ec6"
     }.get(status, "#9f9f9f")
 
-def estimate_text_width(text):
-    avg_char_width = 7  # tweak based on font and size
-    padding = 10
-    return len(text) * avg_char_width + padding
+def generate_signature(params: dict, secret: str) -> str:
+    base_string = urlencode(sorted((k, v) for k, v in params.items() if k != "sig"))
+    return hmac.new(secret.encode(), base_string.encode(), hashlib.sha256).hexdigest()
+
+def verify_signature():
+    if not current_app.config.get("AZURE_SSO"):
+        return True
+    provided_sig = request.args.get("sig")
+    if not provided_sig:
+        return False
+    params = dict(request.args)
+    calculated_sig = generate_signature(params, current_app.config["FLASK_SECRET_KEY"])
+    return hmac.compare_digest(provided_sig, calculated_sig)
+
+# --- Badge Routes ---
 
 @bp.route("/badge")
 def badge():
+    if not verify_signature():
+        return "Unauthorized", 401
+
     project_id = request.args.get("projectid")
     branch = request.args.get("branch")
     job_name = request.args.get("job")
@@ -54,6 +78,9 @@ def badge():
 
 @bp.route("/badge/link")
 def badge_link():
+    if not verify_signature():
+        return "Unauthorized", 401
+
     project_id = request.args.get("projectid")
     branch = request.args.get("branch")
     job_name = request.args.get("job")
@@ -65,6 +92,9 @@ def badge_link():
 
 @bp.route("/test")
 def test_case_badge():
+    if not verify_signature():
+        return "Unauthorized", 401
+
     project_id = request.args.get("projectid")
     testsuite = request.args.get("testsuite")
     classname = request.args.get("classname")
@@ -119,18 +149,27 @@ def badge_helper():
         return "Missing 'projectid' or 'testsuite' in query parameters", 400
 
     test_cases = get_test_cases_for_suite(project_id, testsuite, branch or None)
-
     base_url = request.host_url.rstrip("/")
     badge_urls = []
 
     for case in test_cases:
         name = case["name"]
-        url = f"/test?projectid={project_id}&testsuite={testsuite}&classname={name}"
+        params = {
+            "projectid": project_id,
+            "testsuite": testsuite,
+            "classname": name
+        }
         if branch:
-            url += f"&branch={branch}"
+            params["branch"] = branch
         if simple:
-            url += "&simple=true"
-        badge_urls.append((name, base_url + url))
+            params["simple"] = "true"
+
+        if current_app.config.get("AZURE_SSO"):
+            sig = generate_signature(params, current_app.config["FLASK_SECRET_KEY"])
+            params["sig"] = sig
+
+        query = urlencode(params)
+        badge_urls.append((name, f"{base_url}/test?{query}"))
 
     return render_template(
         "helper.html.j2",
@@ -141,23 +180,28 @@ def badge_helper():
         simple=simple
     )
 
+# --- Azure AD SSO Routes ---
+
 @bp.route("/login")
 def login():
     if not current_app.config.get("AZURE_SSO"):
-        return redirect("/")
-    redirect_uri = url_for("routes.auth_callback", _external=True)
+        return abort(403, description="SSO is not enabled")
+    redirect_uri = url_for("routes.auth_redirect", _external=True)
     return current_app.oauth.azure.authorize_redirect(redirect_uri)
 
 @bp.route("/auth/redirect")
-def auth_callback():
+def auth_redirect():
     if not current_app.config.get("AZURE_SSO"):
-        return redirect("/")
+        return abort(403, description="SSO is not enabled")
     token = current_app.oauth.azure.authorize_access_token()
-    user = token.get("userinfo") or token.get("id_token")
-    session["user"] = user
-    return redirect("/helper")
+    user = current_app.oauth.azure.parse_id_token(token)
+    session["user"] = {
+        "name": user.get("name"),
+        "email": user.get("email")
+    }
+    return redirect(url_for("routes.badge_helper"))
 
 @bp.route("/logout")
 def logout():
-    session.pop("user", None)
-    return redirect("/")
+    session.clear()
+    return redirect("https://login.microsoftonline.com/common/oauth2/v2.0/logout")
