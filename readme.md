@@ -38,6 +38,9 @@ Returns a badge showing the result of a specific test case in a GitLab test repo
 
 ### Badge URL Helper UI
 
+> **🔒 Security Note**  
+> The helper endpoint can be optionally secured with Azure AD authentication. When enabled, users will need to authenticate through Microsoft's identity platform to access the helper UI. See the Configuration section for Azure SSO setup details.
+
 Use the `/helper` page to browse test cases and generate badge links interactively:
 
 ```http
@@ -104,6 +107,16 @@ Create a `.env` file with the following:
 GITLAB_API_URL=https://gitlab.com/api/v4
 GITLAB_WEB_URL=https://gitlab.com
 GITLAB_ACCESS_TOKEN=your_personal_access_token
+FLASK_SECRET_KEY=your-super-secret-flast-key
+AZURE_SSO=false
+```
+
+If you set AZURE_SSO to ```true``` you also need to supply values for the following:
+
+```plaintext
+AZURE_CLIENT_ID=your-client-id
+AZURE_CLIENT_SECRET=your-client-secret
+AZURE_TENANT_ID=your-azure-tenant-id
 ```
 
 ---

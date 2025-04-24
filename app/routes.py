@@ -1,4 +1,4 @@
-from flask import Blueprint, request, redirect, render_template, Response
+from flask import Blueprint, request, redirect, render_template, Response, session, url_for, current_app
 from .gitlab_client import get_job_status, get_test_case_status, get_test_cases_for_suite
 
 bp = Blueprint("routes", __name__)
@@ -69,7 +69,7 @@ def test_case_badge():
     testsuite = request.args.get("testsuite")
     classname = request.args.get("classname")
     branch = request.args.get("branch")
-    simple= request.args.get("simple", "false").lower() == "true"
+    simple = request.args.get("simple", "false").lower() == "true"
 
     if not project_id or not testsuite or not classname:
         return "Missing parameters", 400
@@ -88,7 +88,7 @@ def test_case_badge():
         total_width = status_width
     else:
         label = classname[:37] + "..."
-        label_width = estimate_text_width(label)- 40
+        label_width = estimate_text_width(label) - 40
         status_width = estimate_text_width(status)
         total_width = label_width + status_width
 
@@ -107,6 +107,9 @@ def test_case_badge():
 
 @bp.route("/helper")
 def badge_helper():
+    if current_app.config.get("AZURE_SSO") and "user" not in session:
+        return redirect(url_for("routes.login"))
+
     project_id = request.args.get("projectid")
     testsuite = request.args.get("testsuite")
     branch = request.args.get("branch", "").strip()
@@ -129,4 +132,32 @@ def badge_helper():
             url += "&simple=true"
         badge_urls.append((name, base_url + url))
 
-    return render_template("helper.html.j2", badge_urls=badge_urls, projectid=project_id, testsuite=testsuite, branch=branch, simple=simple)
+    return render_template(
+        "helper.html.j2",
+        badge_urls=badge_urls,
+        projectid=project_id,
+        testsuite=testsuite,
+        branch=branch,
+        simple=simple
+    )
+
+@bp.route("/login")
+def login():
+    if not current_app.config.get("AZURE_SSO"):
+        return redirect("/")
+    redirect_uri = url_for("routes.auth_callback", _external=True)
+    return current_app.oauth.azure.authorize_redirect(redirect_uri)
+
+@bp.route("/auth/redirect")
+def auth_callback():
+    if not current_app.config.get("AZURE_SSO"):
+        return redirect("/")
+    token = current_app.oauth.azure.authorize_access_token()
+    user = token.get("userinfo") or token.get("id_token")
+    session["user"] = user
+    return redirect("/helper")
+
+@bp.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect("/")
